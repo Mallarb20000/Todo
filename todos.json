@@ -1,0 +1,30 @@
+[
+  {
+    "task": "Buy milk",
+    "completed": false
+  },
+  {
+    "task": "Study Python",
+    "completed": false
+  },
+  {
+    "task": "Exercise",
+    "completed": false
+  },
+  {
+    "task": "Exercise123",
+    "completed": true
+  },
+  {
+    "task": "Exercise",
+    "completed": false
+  },
+  {
+    "task": "Exercise4545",
+    "completed": false
+  },
+  {
+    "task": "Read a book",
+    "completed": false
+  }
+]
