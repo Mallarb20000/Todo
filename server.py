@@ -19,6 +19,46 @@ def save_todos(todo):
     except Exception as e:
         print(f"Error saving todos: {e}")
 
+def validate_todo_data(data):
+    """
+    Validates todo item data.
+    Returns: (is_valid, error_message)
+    """
+    # Check if data is a dictionary
+    if not isinstance(data, dict):
+        return (False, "Todo must be a JSON object")
+
+    # Check if 'task' field exists
+    if 'task' not in data:
+        return (False, "Task field is required")
+
+    # Check if 'task' is a string
+    if not isinstance(data['task'], str):
+        return (False, "Task must be a string")
+
+    # Check if 'task' is not empty or just whitespace
+    task = data['task'].strip()
+    if len(task) == 0:
+        return (False, "Task cannot be empty or whitespace")
+
+    # Check task length (1-500 characters)
+    if len(task) > 500:
+        return (False, "Task is too long (maximum 500 characters)")
+
+    # Check optional 'completed' field if present
+    if 'completed' in data:
+        if not isinstance(data['completed'], bool):
+            return (False, "Completed field must be a boolean (true/false)")
+
+    # Check optional 'description' field if present
+    if 'description' in data:
+        if not isinstance(data['description'], str):
+            return (False, "Description must be a string")
+        if len(data['description']) > 1000:
+            return (False, "Description is too long (maximum 1000 characters)")
+
+    return (True, None)
+
 todo = load_todos()
 
 class ToDoHandler(BaseHTTPRequestHandler):
@@ -51,11 +91,19 @@ class ToDoHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         if self.path == "/todo":
-            
+
             try:
                 content_length = int(self.headers['Content-Length'])
                 post_data = self.rfile.read(content_length)
-                todo.append(json.loads((post_data.decode())))
+                new_todo = json.loads(post_data.decode())
+
+                # Validate the todo data
+                is_valid, error_message = validate_todo_data(new_todo)
+                if not is_valid:
+                    self.send_json_response(400, {"error": error_message})
+                    return
+
+                todo.append(new_todo)
                 save_todos(todo)
                 self.send_json_response(201, {"message": "Task added successfully"})
             except (ValueError, json.JSONDecodeError):
@@ -78,20 +126,28 @@ class ToDoHandler(BaseHTTPRequestHandler):
         else:
             self.send_json_response(404, {"error": "Path not found"})
 
-    def do_PUT(self):    
+    def do_PUT(self):
         if self.path.startswith("/todo/"):
             try:
                 index = int(self.path.split("/")[-1])
                 if 0 <= index < len(todo):
                     try:
                         content_length = int(self.headers['Content-Length'])
-                        todo[index] = json.loads(self.rfile.read(content_length).decode())
+                        updated_todo = json.loads(self.rfile.read(content_length).decode())
+
+                        # Validate the todo data
+                        is_valid, error_message = validate_todo_data(updated_todo)
+                        if not is_valid:
+                            self.send_json_response(400, {"error": error_message})
+                            return
+
+                        todo[index] = updated_todo
                         save_todos(todo)
                         self.send_json_response(200, {"message": "Task updated successfully"})
                     except (ValueError, json.JSONDecodeError):
                         self.send_json_response(400, {"error": "Invalid JSON"})
                 else:
-                    self.send_json_response(404, {"error": "Task not found"})       
+                    self.send_json_response(404, {"error": "Task not found"})
             except ValueError:
                 self.send_json_response(400, {"error": "Invalid index"})
 
