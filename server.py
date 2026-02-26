@@ -21,7 +21,7 @@ def save_todos(todo):
 
 def validate_todo_data(data):
     """
-    Validates todo item data.
+    Validates todo item data for POST (full object required).
     Returns: (is_valid, error_message)
     """
     # Check if data is a dictionary
@@ -51,6 +51,45 @@ def validate_todo_data(data):
             return (False, "Completed field must be a boolean (true/false)")
 
     # Check optional 'description' field if present
+    if 'description' in data:
+        if not isinstance(data['description'], str):
+            return (False, "Description must be a string")
+        if len(data['description']) > 1000:
+            return (False, "Description is too long (maximum 1000 characters)")
+
+    return (True, None)
+
+def validate_partial_todo_data(data):
+    """
+    Validates partial todo data for PUT (only validates fields that are present).
+    Returns: (is_valid, error_message)
+    """
+    # Check if data is a dictionary
+    if not isinstance(data, dict):
+        return (False, "Todo must be a JSON object")
+
+    # Check if at least one field is provided
+    if len(data) == 0:
+        return (False, "At least one field must be provided for update")
+
+    # Validate 'task' field if present
+    if 'task' in data:
+        if not isinstance(data['task'], str):
+            return (False, "Task must be a string")
+
+        task = data['task'].strip()
+        if len(task) == 0:
+            return (False, "Task cannot be empty or whitespace")
+
+        if len(task) > 500:
+            return (False, "Task is too long (maximum 500 characters)")
+
+    # Validate 'completed' field if present
+    if 'completed' in data:
+        if not isinstance(data['completed'], bool):
+            return (False, "Completed field must be a boolean (true/false)")
+
+    # Validate 'description' field if present
     if 'description' in data:
         if not isinstance(data['description'], str):
             return (False, "Description must be a string")
@@ -133,15 +172,20 @@ class ToDoHandler(BaseHTTPRequestHandler):
                 if 0 <= index < len(todo):
                     try:
                         content_length = int(self.headers['Content-Length'])
-                        updated_todo = json.loads(self.rfile.read(content_length).decode())
+                        updated_fields = json.loads(self.rfile.read(content_length).decode())
 
-                        # Validate the todo data
-                        is_valid, error_message = validate_todo_data(updated_todo)
+                        # Validate the partial update data
+                        is_valid, error_message = validate_partial_todo_data(updated_fields)
                         if not is_valid:
                             self.send_json_response(400, {"error": error_message})
                             return
 
-                        todo[index] = updated_todo
+                        # Merge the updated fields with existing todo
+                        # This keeps fields that weren't sent in the update
+                        existing_todo = todo[index]
+                        for key, value in updated_fields.items():
+                            existing_todo[key] = value
+
                         save_todos(todo)
                         self.send_json_response(200, {"message": "Task updated successfully"})
                     except (ValueError, json.JSONDecodeError):
