@@ -3,6 +3,7 @@ import os
 from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # Allow tests to specify a different file via environment variable
+
 TODO_FILENAME = os.environ.get('TODO_FILE', 'todos.json')
 
 def load_todos():
